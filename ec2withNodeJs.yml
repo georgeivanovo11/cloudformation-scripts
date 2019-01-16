@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create an EC2 instance and load node.js app from git
+Parameters:
+  InstanceType:
+    Description: EC2 Instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+    - t1.micro
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - m1.small
+    - m1.medium
+    - m1.large
+    ConstraintDescription: Must be a valid EC2 instance type
+  KeyName:
+    Description: Key pair to allow SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  App:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: 'ami-076e276d85f524150'
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups: 
+        - !Ref AppSecurityGroup
+      UserData: 
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            apt-get update
+            curl -sL https://deb.nodesource.com/setup_8.x -o nodesource_setup.sh
+            bash nodesource_setup.sh
+            apt-get -y install nodejs
+            cd /home/ubuntu
+            git clone https://github.com/georgeivanovo11/node-init.git
+            cd node-init
+            npm i
+            npm start
+         
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable NodeJS server port
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3000'
+        ToPort: '3000'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+Outputs:
+  WebsiteURL:
+    Description: The URL pointing the webserver.
+    Value: !Sub http://${App.PublicIp}
